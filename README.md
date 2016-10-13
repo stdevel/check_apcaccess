@@ -1,5 +1,3 @@
-A Nagios / Icinga plugin for monitoring APC UPS devices using apcupsd
-
 ``check_apcaccess`` is a Nagios / Icinga plugin for checking APC UPS devices using [apcupsd](http://www.apcupsd.com).
 
 # Requirements
