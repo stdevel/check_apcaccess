@@ -12,6 +12,7 @@ The following parameters can be specified:
 | Parameter | Description |
 |:----------|:------------|
 | `-d` / `--debug` | enable debugging outputs (*default: no*) |
+| `-f` / `--file` | defines the apcupsd configuration file (*default: /etc/apcupsd/apcupsd.conf*) |
 | `-h` / `--help` | shows help and quits |
 | `-P` / `--show-perfdata` | enables performance data (*default: no*) |
 | `-w` / `--temp-warning` | defines temperature warning threshold in Celsius (*default: 50 C*) |

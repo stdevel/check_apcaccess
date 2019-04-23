@@ -160,7 +160,7 @@ def get_apcaccess_data():
 	#get output of apcaccess
 	global ups_info
 	
-	raw_data = run_cmd("apcaccess")
+	raw_data = run_cmd("apcaccess -f {0}".format(options.file))
 	raw_data = raw_data.splitlines()
 	for line in raw_data:
 		#parse lines to key/value dict
@@ -176,7 +176,7 @@ if __name__ == "__main__":
 	desc='''%prog is used to check a APC UPS using the apcaccess utility.
 	
 	Checkout the GitHub page for updates: https://github.com/stdevel/check_apcaccess'''
-	parser = OptionParser(description=desc,version="%prog version 0.5.0")
+	parser = OptionParser(description=desc,version="%prog version 0.5.1")
 	
 	gen_opts = OptionGroup(parser, "Generic options")
 	mon_opts = OptionGroup(parser, "Monitoring options")
@@ -187,6 +187,9 @@ if __name__ == "__main__":
 	
 	#-d / --debug
 	gen_opts.add_option("-d", "--debug", dest="debug", default=False, action="store_true", help="enable debugging outputs")
+
+        #-f / --file
+        gen_opts.add_option("-f", "--file", dest="file", default="/etc/apcupsd/apcupsd.conf", help="defines the apcupsd configuration file (default: /etc/apcupsd/apcupsd.conf)")
 	
 	#-P / --enable-perfdata
 	mon_opts.add_option("-P", "--enable-perfdata", dest="show_perfdata", default=False, action="store_true", help="enables performance data (default: no)")

@@ -8,6 +8,15 @@ type: Plugin
 license: gplv3
 releases: 
   - 
+    name: 0.5.1
+    description: "0.5.1 Release"
+    files: 
+      - 
+        name: check_apcaccess.py
+        url: "file:///check_apcaccess.py"
+        description: "Release 0.5.1"
+        checksum: 7ef1d6f37a0847d74b8c3a8310e96f82
+  - 
     name: 0.5.0
     description: "0.5.0 Release"
     files: 
