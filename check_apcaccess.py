@@ -6,12 +6,13 @@ using the apcaccess utility
 See also https://github.com/stdevel/check_apcaccess
 """
 
-from optparse import OptionParser, OptionGroup
+import argparse
 import subprocess
 import sys
 import logging
 import re
 
+__version__ = "0.6.0"
 # set logger
 LOGGER = logging.getLogger("check_apcaccess")
 # global variables
@@ -118,7 +119,7 @@ def calc_consumption():
     return power_cons
 
 
-def check_ups():
+def check_ups(options):
     """
     Checks UPS state
     """
@@ -126,63 +127,63 @@ def check_ups():
     temp = get_value("ITEMP", True)
     load = get_value("LOADPCT", True)
     batt = get_value("BCHARGE", True)
-    if OPTIONS.time_warn and OPTIONS.time_crit:
+    if options.time_warn and options.time_crit:
         time = get_value("TIMELEFT", True)
     power_cons = calc_consumption()
 
     # check temp
     snip_temp = check_value(
-        temp, "temperature", OPTIONS.temp_warn, OPTIONS.temp_crit
+        temp, "temperature", options.temp_warn, options.temp_crit
     )
 
     # check load
     snip_load = check_value(
-        load, "load", OPTIONS.load_warn, OPTIONS.temp_crit
+        load, "load", options.load_warn, options.temp_crit
     )
 
     # check battery load
     snip_batt = check_value(
         batt, "battery load",
-        OPTIONS.bat_warn,
-        OPTIONS.bat_crit,
+        options.bat_warn,
+        options.bat_crit,
         True
     )
 
     # check battery time (optional)
-    if OPTIONS.time_warn or OPTIONS.time_crit:
+    if options.time_warn or options.time_crit:
         snip_time = check_value(
             time,
             "battery time",
-            OPTIONS.time_warn,
-            OPTIONS.time_crit,
+            options.time_warn,
+            options.time_crit,
             True
         )
     else:
         snip_time = ""
 
     # check power consumption (optional)
-    if OPTIONS.consum_warn or OPTIONS.consum_crit:
+    if options.consum_warn or options.consum_crit:
         snip_consum = check_value(
             power_cons,
             "power consumption",
-            OPTIONS.consum_warn,
-            OPTIONS.consum_crit
+            options.consum_warn,
+            options.consum_crit
         )
     else:
         snip_consum = ""
 
     # get performance data
-    if OPTIONS.show_perfdata:
+    if options.show_perfdata:
         # initialize perfdata
         perfdata = " |"
 
         # power consumption
-        if OPTIONS.consum_warn and OPTIONS.consum_crit:
+        if options.consum_warn and options.consum_crit:
             perfdata = "{0} 'consumption'={1};{2};{3};;".format(
                 perfdata,
                 power_cons,
-                float(OPTIONS.consum_warn),
-                float(OPTIONS.consum_crit),
+                float(options.consum_warn),
+                float(options.consum_crit),
             )
         else:
             perfdata = "{0} 'consumption'={1}".format(perfdata, power_cons)
@@ -191,8 +192,8 @@ def check_ups():
         perfdata = "{0} 'temperature'={1};{2};{3};{4};{5}".format(
             perfdata,
             temp,
-            float(OPTIONS.temp_warn),
-            float(OPTIONS.temp_crit),
+            float(options.temp_warn),
+            float(options.temp_crit),
             0.0,
             100.0,
         )
@@ -201,8 +202,8 @@ def check_ups():
         perfdata = "{0} 'load'={1};{2};{3};{4};{5}".format(
             perfdata,
             load,
-            float(OPTIONS.load_warn),
-            float(OPTIONS.load_crit),
+            float(options.load_warn),
+            float(options.load_crit),
             0.0,
             100.0,
         )
@@ -211,19 +212,19 @@ def check_ups():
         perfdata = "{0} 'battery_load'={1};{2};{3};{4};{5}".format(
             perfdata,
             batt,
-            float(OPTIONS.bat_warn),
-            float(OPTIONS.bat_crit),
+            float(options.bat_warn),
+            float(options.bat_crit),
             0.0,
             100.0
         )
 
         # battery time
-        if OPTIONS.time_warn or OPTIONS.time_crit:
+        if options.time_warn or options.time_crit:
             perfdata = "{0} 'battery_time'={1};{2};{3};;".format(
                 perfdata,
                 time,
-                float(OPTIONS.time_warn),
-                float(OPTIONS.time_crit)
+                float(options.time_warn),
+                float(options.time_crit)
             )
     else:
         perfdata = ""
@@ -252,13 +253,13 @@ def run_cmd(cmd=""):
     return output
 
 
-def get_apcaccess_data():
+def get_apcaccess_data(options):
     """
     Gets the output of apcaccess
     """
     global UPS_INFO
 
-    raw_data = run_cmd("apcaccess -f {0}".format(OPTIONS.file))
+    raw_data = run_cmd("apcaccess -f {0}".format(options.file))
     raw_data = raw_data.splitlines()
     for line in raw_data:
         # parse lines to key/value dict
@@ -268,22 +269,19 @@ def get_apcaccess_data():
         UPS_INFO[key] = value
 
 
-if __name__ == "__main__":
-    # defines description, version and load parser
-    DESC = """%prog is used to check a APC UPS using the apcaccess utility.
+def parse_options():
+    """Parses options and arguments."""
+    desc = "%(prog)s is used to check a APC UPS using the apcaccess utility."
+    epilog = "See also: https://github.com/stdevel/check_apcaccess"
+    parser = argparse.ArgumentParser(description=desc, epilog=epilog)
+    parser.add_argument('--version', action='version', version=__version__)
 
-  See also: https://github.com/stdevel/check_apcaccess"""
-    PARSER = OptionParser(description=DESC, version="%prog version 0.5.1")
-
-    GEN_OPTS = OptionGroup(PARSER, "Generic options")
-    MON_OPTS = OptionGroup(PARSER, "Monitoring options")
-    THRES_OPTS = OptionGroup(PARSER, "Threshold options")
-    PARSER.add_option_group(GEN_OPTS)
-    PARSER.add_option_group(MON_OPTS)
-    PARSER.add_option_group(THRES_OPTS)
+    gen_opts = parser.add_argument_group("Generic options")
+    mon_opts = parser.add_argument_group("Monitoring options")
+    thres_opts = parser.add_argument_group("Threshold options")
 
     # -d / --debug
-    GEN_OPTS.add_option(
+    gen_opts.add_argument(
         "-d",
         "--debug",
         dest="debug",
@@ -293,7 +291,7 @@ if __name__ == "__main__":
     )
 
     # -f / --file
-    GEN_OPTS.add_option(
+    gen_opts.add_argument(
         "-f",
         "--file",
         dest="file",
@@ -302,7 +300,7 @@ if __name__ == "__main__":
     )
 
     # -P / --enable-perfdata
-    MON_OPTS.add_option(
+    mon_opts.add_argument(
         "-P",
         "--enable-perfdata",
         dest="show_perfdata",
@@ -312,7 +310,7 @@ if __name__ == "__main__":
     )
 
     # -w / --temp-warning
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-w",
         "--temp-warning",
         dest="temp_warn",
@@ -324,7 +322,7 @@ if __name__ == "__main__":
     )
 
     # -c / --temp-critical
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-c",
         "--temp-critical",
         dest="temp_crit",
@@ -336,7 +334,7 @@ if __name__ == "__main__":
     )
 
     # -l / --load-warning
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-l",
         "--load-warning",
         dest="load_warn",
@@ -348,7 +346,7 @@ if __name__ == "__main__":
     )
 
     # -L / --load-critical
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-L",
         "--load-critical",
         dest="load_crit",
@@ -360,7 +358,7 @@ if __name__ == "__main__":
     )
 
     # -b / --battery-warning
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-b",
         "--battery-warning",
         dest="bat_warn",
@@ -372,7 +370,7 @@ if __name__ == "__main__":
     )
 
     # -B / --battery-critical
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-B",
         "--battery-critical",
         dest="bat_crit",
@@ -384,7 +382,7 @@ if __name__ == "__main__":
     )
 
     # -t / --time-warning
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-t",
         "--time-warning",
         dest="time_warn",
@@ -395,7 +393,7 @@ if __name__ == "__main__":
     )
 
     # -T / --time-critical
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-T",
         "--time-critical",
         dest="time_crit",
@@ -406,7 +404,7 @@ if __name__ == "__main__":
     )
 
     # -u / --consumption-warning
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-u",
         "--consumption-warning",
         dest="consum_warn",
@@ -417,7 +415,7 @@ if __name__ == "__main__":
     )
 
     # -U / --consumption-critical
-    THRES_OPTS.add_option(
+    thres_opts.add_argument(
         "-U",
         "--consumption-critical",
         dest="consum_crit",
@@ -428,10 +426,17 @@ if __name__ == "__main__":
     )
 
     # parse arguments
-    (OPTIONS, ARGS) = PARSER.parse_args()
+    return parser.parse_args()
+
+
+def cli():
+    """
+    This functions initializes the CLI interface
+    """
+    options = parse_options()
 
     # set logger level
-    if OPTIONS.debug:
+    if options.debug:
         logging.basicConfig(level=logging.DEBUG)
         LOGGER.setLevel(logging.DEBUG)
     else:
@@ -439,8 +444,12 @@ if __name__ == "__main__":
         LOGGER.setLevel(logging.INFO)
 
     # debug outputs
-    LOGGER.debug("OPTIONS: %s", OPTIONS)
+    LOGGER.debug("options: %s", options)
 
     # get information and check UPS state
-    get_apcaccess_data()
-    check_ups()
+    get_apcaccess_data(options)
+    check_ups(options)
+
+
+if __name__ == "__main__":
+    cli()
