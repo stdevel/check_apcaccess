@@ -262,6 +262,7 @@ def get_apcaccess_data(options):
     raw_data = run_cmd("apcaccess -f {0}".format(options.file))
     raw_data = raw_data.splitlines()
     for line in raw_data:
+        line = line.decode()
         # parse lines to key/value dict
         key = line[: line.find(":")].strip()
         value = line[line.find(":") + 1:].strip()
