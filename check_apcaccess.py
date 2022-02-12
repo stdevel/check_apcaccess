@@ -138,7 +138,7 @@ def check_ups(options):
 
     # check load
     snip_load = check_value(
-        load, "load", options.load_warn, options.temp_crit
+        load, "load", options.load_warn, options.load_crit
     )
 
     # check battery load
