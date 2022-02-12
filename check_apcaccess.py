@@ -124,17 +124,22 @@ def check_ups(options):
     Checks UPS state
     """
     # get _all_ the values
-    temp = get_value("ITEMP", True)
+    if options.temp_warn and options.temp_crit:
+        temp = get_value("ITEMP", True)
     load = get_value("LOADPCT", True)
     batt = get_value("BCHARGE", True)
     if options.time_warn and options.time_crit:
         time = get_value("TIMELEFT", True)
-    power_cons = calc_consumption()
+    if options.consum_warn or options.consum_crit:
+        power_cons = calc_consumption()
 
-    # check temp
-    snip_temp = check_value(
-        temp, "temperature", options.temp_warn, options.temp_crit
-    )
+    # check temp (optional)
+    if options.temp_warn and options.temp_crit:
+        snip_temp = check_value(
+            temp, "temperature", options.temp_warn, options.temp_crit
+        )
+    else:
+        snip_temp = ""
 
     # check load
     snip_load = check_value(
@@ -185,18 +190,17 @@ def check_ups(options):
                 float(options.consum_warn),
                 float(options.consum_crit),
             )
-        else:
-            perfdata = "{0} 'consumption'={1}".format(perfdata, power_cons)
 
         # temperature
-        perfdata = "{0} 'temperature'={1};{2};{3};{4};{5}".format(
-            perfdata,
-            temp,
-            float(options.temp_warn),
-            float(options.temp_crit),
-            0.0,
-            100.0,
-        )
+        if options.temp_warn or options.temp_crit:
+            perfdata = "{0} 'temperature'={1};{2};{3};{4};{5}".format(
+                perfdata,
+                temp,
+                float(options.temp_warn),
+                float(options.temp_crit),
+                0.0,
+                100.0,
+            )
 
         # load
         perfdata = "{0} 'load'={1};{2};{3};{4};{5}".format(
@@ -315,11 +319,10 @@ def parse_options():
         "-w",
         "--temp-warning",
         dest="temp_warn",
-        default=50,
         type=int,
         metavar="TEMP",
         action="store",
-        help="defines temperature warning threshold (celsius, default: 50)",
+        help="defines temperature warning threshold (celsius, default: empty)",
     )
 
     # -c / --temp-critical
@@ -327,11 +330,10 @@ def parse_options():
         "-c",
         "--temp-critical",
         dest="temp_crit",
-        default=60,
         type=int,
         metavar="TEMP",
         action="store",
-        help="temperature critical threshold (celsius, default: 60)",
+        help="temperature critical threshold (celsius, default: empty)",
     )
 
     # -l / --load-warning
