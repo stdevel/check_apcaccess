@@ -43,25 +43,25 @@ def check_value(val, desc, warn, crit, reverse=False):
     if not reverse:
         if val > crit:
             # critical
-            snip = "{0} critical ({1})".format(desc, val)
+            snip = "{desc} critical ({val})"
             set_code(2)
         elif val > warn:
             # warning
-            snip = "{0} warning ({1})".format(desc, val)
+            snip = "{desc} warning ({val})"
             set_code(1)
         else:
-            snip = "{0} okay ({1})".format(desc, val)
+            snip = "{desc} okay ({val})"
     else:
         if val < crit:
             # critical
-            snip = "{0} critical ({1})".format(desc, val)
+            snip = "{desc} critical ({val})"
             set_code(2)
         elif val < warn:
             # warning
-            snip = "{0} warning ({1})".format(desc, val)
+            snip = "{desc} warning ({val})"
             set_code(1)
         else:
-            snip = "{0} okay ({1})".format(desc, val)
+            snip = "{desc} okay ({val})"
 
     return snip
 
@@ -124,17 +124,22 @@ def check_ups(options):
     Checks UPS state
     """
     # get _all_ the values
-    temp = get_value("ITEMP", True)
+    if options.temp_warn and options.temp_crit:
+        temp = get_value("ITEMP", True)
     load = get_value("LOADPCT", True)
     batt = get_value("BCHARGE", True)
     if options.time_warn and options.time_crit:
         time = get_value("TIMELEFT", True)
-    power_cons = calc_consumption()
+    if options.consum_warn or options.consum_crit:
+        power_cons = calc_consumption()
 
-    # check temp
-    snip_temp = check_value(
-        temp, "temperature", options.temp_warn, options.temp_crit
-    )
+    # check temp (optional)
+    if options.temp_warn and options.temp_crit:
+        snip_temp = check_value(
+            temp, "temperature", options.temp_warn, options.temp_crit
+        )
+    else:
+        snip_temp = ""
 
     # check load
     snip_load = check_value(
@@ -179,65 +184,42 @@ def check_ups(options):
 
         # power consumption
         if options.consum_warn and options.consum_crit:
-            perfdata = "{0} 'consumption'={1};{2};{3};;".format(
-                perfdata,
-                power_cons,
-                float(options.consum_warn),
-                float(options.consum_crit),
-            )
-        else:
-            perfdata = "{0} 'consumption'={1}".format(perfdata, power_cons)
+            _con_w = float(options.consum_warn)
+            _con_c =float(options.consum_crit)
+            perfdata = "{perfdata} 'consumption'={power_cons};{_con_w};{_con_c};;"
 
         # temperature
-        perfdata = "{0} 'temperature'={1};{2};{3};{4};{5}".format(
-            perfdata,
-            temp,
-            float(options.temp_warn),
-            float(options.temp_crit),
-            0.0,
-            100.0,
-        )
+        if options.temp_warn or options.temp_crit:
+            _temp_w = float(options.temp_warn)
+            _temp_c = float(options.temp_crit)
+            perfdata = "{perfdata} 'temperature'={temp};{_temp_w};{_temp_c};0.0;100.0"
 
         # load
-        perfdata = "{0} 'load'={1};{2};{3};{4};{5}".format(
-            perfdata,
-            load,
-            float(options.load_warn),
-            float(options.load_crit),
-            0.0,
-            100.0,
-        )
+        _ld_w = float(options.load_warn)
+        _ld_c = float(options.load_crit)
+        perfdata = "{perfdata} 'load'={load};{_ld_w};{_ld_c};0.0;100.0"
 
         # battery charge
-        perfdata = "{0} 'battery_load'={1};{2};{3};{4};{5}".format(
-            perfdata,
-            batt,
-            float(options.bat_warn),
-            float(options.bat_crit),
-            0.0,
-            100.0
-        )
+        _bat_w = float(options.bat_warn)
+        _bat_c = float(options.bat_crit)
+        perfdata = "{perfdata} 'battery_load'={batt};{_bat_w};{_bat_c};0.0;100.0"
 
         # battery time
         if options.time_warn or options.time_crit:
-            perfdata = "{0} 'battery_time'={1};{2};{3};;".format(
-                perfdata,
-                time,
-                float(options.time_warn),
-                float(options.time_crit)
-            )
+            _time_w = float(options.time_warn)
+            _time_c = float(options.time_crit)
+            perfdata = "{perfdata} 'battery_time'={time};{_time_w};{_time_c};;"
     else:
         perfdata = ""
 
     # return result
     _filter = [snip_temp, snip_load, snip_batt, snip_time, snip_consum]
     snips = [x for x in _filter if x != ""]
+    _ret = get_return_str()
+    _snips = str(", ".join(snips))
+    _perf = perfdata
     print(
-        "{0}: {1}{2}".format(
-            get_return_str(),
-            str(", ".join(snips)),
-            perfdata
-        )
+        f"{_ret}: {_snips}{_perf}"
     )
     sys.exit(STATE)
 
@@ -247,7 +229,7 @@ def run_cmd(cmd=""):
     Run a command, it's tricky!
     """
     output = subprocess.Popen(
-        "LANG=C {0}".format(cmd), shell=True, stdout=subprocess.PIPE
+        "LANG=C {cmd}", shell=True, stdout=subprocess.PIPE
     ).stdout.read()
     LOGGER.debug("Output of '%s => '%s", cmd, output)
     return output
@@ -259,7 +241,8 @@ def get_apcaccess_data(options):
     """
     global UPS_INFO
 
-    raw_data = run_cmd("apcaccess -f {0}".format(options.file))
+    _file = options.file
+    raw_data = run_cmd("apcaccess -f {_file}")
     raw_data = raw_data.splitlines()
     for line in raw_data:
         line = line.decode()
@@ -315,11 +298,10 @@ def parse_options():
         "-w",
         "--temp-warning",
         dest="temp_warn",
-        default=50,
         type=int,
         metavar="TEMP",
         action="store",
-        help="defines temperature warning threshold (celsius, default: 50)",
+        help="defines temperature warning threshold (celsius, default: empty)",
     )
 
     # -c / --temp-critical
@@ -327,11 +309,10 @@ def parse_options():
         "-c",
         "--temp-critical",
         dest="temp_crit",
-        default=60,
         type=int,
         metavar="TEMP",
         action="store",
-        help="temperature critical threshold (celsius, default: 60)",
+        help="temperature critical threshold (celsius, default: empty)",
     )
 
     # -l / --load-warning
