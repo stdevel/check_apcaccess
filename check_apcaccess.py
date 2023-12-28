@@ -103,7 +103,7 @@ def check_ups():
 	snip_temp = check_value(temp, "temperature", options.temp_warn, options.temp_crit)
 	
 	#check load
-	snip_load = check_value(load, "load", options.load_warn, options.temp_crit)
+	snip_load = check_value(load, "load", options.load_warn, options.load_crit)
 	
 	#check battery load
 	snip_batt = check_value(batt, "battery load", options.bat_warn, options.bat_crit, True)
