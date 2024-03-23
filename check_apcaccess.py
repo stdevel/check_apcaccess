@@ -88,10 +88,13 @@ def get_value(key, is_float=False):
     """
     Get value from apcaccess information
     """
-    if is_float:
-        temp = re.findall(r"\d+", UPS_INFO[key])
-        return float(temp[0])
-    return UPS_INFO[key]
+    try:
+        if is_float:
+            temp = re.findall(r"\d+", UPS_INFO[key])
+            return float(temp[0])
+        return UPS_INFO[key]
+    except KeyError:
+        return 0.0
 
 
 def calc_consumption():
@@ -179,7 +182,8 @@ def check_ups(my_options):
     snips = [
         x for x in [snip_temp, snip_load, snip_batt, snip_time, snip_consum] if x != ""
     ]
-    print(f"{get_return_str()}: {str(", ".join(snips))}{perfdata}")
+    status = str(", ".join(snips))
+    print(f"{get_return_str()}: {status}{perfdata}")
     sys.exit(STATE)
 
 
@@ -187,9 +191,8 @@ def run_cmd(cmd=""):
     """
     Run the command, it's tricky!
     """
-    output = subprocess.Popen(
-        f"LANG=C {cmd}", shell=True, stdout=subprocess.PIPE
-    ).stdout.read()
+    with subprocess.Popen(f"LANG=C {cmd}", shell=True, stdout=subprocess.PIPE) as proc:
+        output = proc.stdout.read()
 
     LOGGER.debug("Output of '%s' => '%s", cmd, output)
     return output
@@ -205,8 +208,8 @@ def get_apcaccess_data(my_options):
     raw_data = raw_data.splitlines()
     for line in raw_data:
         # parse lines to key/value dict
-        key = line[: line.find(":")].strip()
-        value = line[line.find(":") + 1 :].strip()
+        key = line[:str(line).find(":")].strip()
+        value = line[str(line).find(":") + 1 :].strip()
         LOGGER.debug("Found key '%s' with value '%s'", key, value)
         UPS_INFO[key] = value
 
